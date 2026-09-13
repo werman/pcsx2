@@ -569,11 +569,15 @@ bool GSRenderer::BeginPresentFrame(bool frame_skip)
 
 void GSRenderer::EndPresentFrame()
 {
-	if (GSDumpReplayer::IsReplayingDump())
-		GSDumpReplayer::RenderUI();
+	if (!GSDumpReplayer::IsRunner())
+	{
+		if (GSDumpReplayer::IsReplayingDump())
+			GSDumpReplayer::RenderUI();
 
-	FullscreenUI::Render();
-	ImGuiManager::RenderOSD();
+		FullscreenUI::Render();
+		ImGuiManager::RenderOSD();
+	}
+
 	g_gs_device->EndPresent();
 	ImGuiManager::NewFrame();
 }
