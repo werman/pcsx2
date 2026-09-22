@@ -57,7 +57,15 @@ extern "C" {
 #define ff_const59 const
 #endif
 
+#if LIBAVCODEC_VERSION_MAJOR >= 61
+#define AVCODEC_61_IMPORTS(X) \
+	X(avcodec_get_supported_config)
+#else
+#define AVCODEC_61_IMPORTS(X)
+#endif
+
 #define VISIT_AVCODEC_IMPORTS(X) \
+	AVCODEC_61_IMPORTS(X) \
 	X(avcodec_find_encoder_by_name) \
 	X(avcodec_find_encoder) \
 	X(avcodec_alloc_context3) \
@@ -67,7 +75,6 @@ extern "C" {
 	X(avcodec_receive_packet) \
 	X(avcodec_parameters_from_context) \
 	X(avcodec_get_hw_config) \
-	X(avcodec_get_supported_config) \
 	X(av_codec_iterate) \
 	X(av_packet_alloc) \
 	X(av_packet_free) \
@@ -363,6 +370,40 @@ void GSCapture::LogAVError(int errnum, const char* format, ...)
 	Host::AddIconOSDMessage("GSCaptureError", ICON_FA_CAMERA, fmt::format("{}{} ({})", msg, errbuf, errnum), Host::OSD_ERROR_DURATION);
 }
 
+static bool GetSupportedPixelFormats(const AVCodec* codec, const AVPixelFormat** formats, int* count)
+{
+#if LIBAVCODEC_VERSION_MAJOR >= 61
+	return wrap_avcodec_get_supported_config(nullptr, codec, AV_CODEC_CONFIG_PIX_FORMAT, 0,
+		reinterpret_cast<const void**>(formats), count) >= 0;
+#else
+	*formats = codec->pix_fmts;
+	*count = 0;
+	if (*formats)
+	{
+		while ((*formats)[*count] != AV_PIX_FMT_NONE)
+			(*count)++;
+	}
+	return true;
+#endif
+}
+
+static bool GetSupportedSampleFormats(const AVCodec* codec, const AVSampleFormat** formats, int* count)
+{
+#if LIBAVCODEC_VERSION_MAJOR >= 61
+	return wrap_avcodec_get_supported_config(nullptr, codec, AV_CODEC_CONFIG_SAMPLE_FORMAT, 0,
+		reinterpret_cast<const void**>(formats), count) >= 0;
+#else
+	*formats = codec->sample_fmts;
+	*count = 0;
+	if (*formats)
+	{
+		while ((*formats)[*count] != AV_SAMPLE_FMT_NONE)
+			(*count)++;
+	}
+	return true;
+#endif
+}
+
 std::string GSCapture::GetCaptureTypeForMessage(bool capture_video, bool capture_audio)
 {
 	return capture_video ? capture_audio ? TRANSLATE("GSCapture", "capturing audio and video") : TRANSLATE("GSCapture", "capturing video") : TRANSLATE("GSCapture", "capturing audio");
@@ -457,11 +498,11 @@ bool GSCapture::BeginCapture(float fps, GSVector2i recommendedResolution, float 
 		const AVPixelFormat preferred_sw_pix_fmt = GSConfig.VideoCaptureFormat.empty() ? AV_PIX_FMT_NV12 : static_cast<AVPixelFormat>(std::stoi(GSConfig.VideoCaptureFormat));
 		AVPixelFormat sw_pix_fmt = preferred_sw_pix_fmt;
 		const AVPixelFormat* supported_pix_fmts = nullptr;
-		if (wrap_avcodec_get_supported_config(nullptr, vcodec, AV_CODEC_CONFIG_PIX_FORMAT, 0,
-				reinterpret_cast<const void**>(&supported_pix_fmts), nullptr) == 0 && supported_pix_fmts)
+		int num_supported_pix_fmts = 0;
+		if (GetSupportedPixelFormats(vcodec, &supported_pix_fmts, &num_supported_pix_fmts) && supported_pix_fmts && num_supported_pix_fmts > 0)
 		{
 			sw_pix_fmt = supported_pix_fmts[0];
-			for (u32 i = 0; supported_pix_fmts[i] != AV_PIX_FMT_NONE; i++)
+			for (int i = 0; i < num_supported_pix_fmts; i++)
 			{
 				if (supported_pix_fmts[i] == preferred_sw_pix_fmt)
 				{
@@ -689,23 +730,21 @@ bool GSCapture::BeginCapture(float fps, GSVector2i recommendedResolution, float 
 		wrap_av_channel_layout_default(&s_audio_codec_context->ch_layout, AUDIO_CHANNELS);
 #endif
 
-		bool supports_format = false;
 		const AVSampleFormat* supported_sample_fmts = nullptr;
-		if (wrap_avcodec_get_supported_config(nullptr, acodec, AV_CODEC_CONFIG_SAMPLE_FORMAT, 0,
-				reinterpret_cast<const void**>(&supported_sample_fmts), nullptr) == 0 && supported_sample_fmts)
+		int num_supported_sample_fmts = 0;
+		const bool has_sample_fmt_list = GetSupportedSampleFormats(acodec, &supported_sample_fmts, &num_supported_sample_fmts) &&
+			supported_sample_fmts && num_supported_sample_fmts > 0;
+		bool supports_format = !has_sample_fmt_list;
+		if (has_sample_fmt_list)
 		{
-			for (const AVSampleFormat* p = supported_sample_fmts; *p != AV_SAMPLE_FMT_NONE; p++)
+			for (int i = 0; i < num_supported_sample_fmts; i++)
 			{
-				if (*p == s_audio_codec_context->sample_fmt)
+				if (supported_sample_fmts[i] == s_audio_codec_context->sample_fmt)
 				{
 					supports_format = true;
 					break;
 				}
 			}
-		}
-		else
-		{
-			supports_format = true;
 		}
 
 		if (!supports_format)
@@ -1556,18 +1595,18 @@ GSCapture::FormatList GSCapture::GetVideoFormatList(const char* codec)
 		return ret;
 	}
 
-	const AVPixelFormat* pix_fmts = nullptr;
+	const AVPixelFormat* supported_pix_fmts = nullptr;
+	int num_supported_pix_fmts = 0;
 	// rawvideo doesn't have a list of formats.
-	if (wrap_avcodec_get_supported_config(nullptr, v_codec, AV_CODEC_CONFIG_PIX_FORMAT, 0,
-			reinterpret_cast<const void**>(&pix_fmts), nullptr) != 0 || !pix_fmts)
+	if (!GetSupportedPixelFormats(v_codec, &supported_pix_fmts, &num_supported_pix_fmts) || supported_pix_fmts == nullptr)
 	{
-		Console.Error("(GetVideoFormatList) v_codec has no pixel format list.");
+		Console.Error("(GetVideoFormatList) codec pixel format list is unavailable.");
 		return ret;
 	}
 
-	for (int i = 0; pix_fmts[i] != AVPixelFormat::AV_PIX_FMT_NONE; i++)
+	for (int i = 0; i < num_supported_pix_fmts; i++)
 	{
-		ret.emplace_back(pix_fmts[i], wrap_av_get_pix_fmt_name(pix_fmts[i]));
+		ret.emplace_back(supported_pix_fmts[i], wrap_av_get_pix_fmt_name(supported_pix_fmts[i]));
 	}
 
 	return ret;
