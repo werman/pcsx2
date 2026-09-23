@@ -6512,12 +6512,18 @@ void GSDeviceVK::UpdateHWPipelineSelector(GSHWDrawConfig& config, PipelineSelect
 	pipe.ds = config.ds != nullptr && !config.ps.HasDepthROV();
 	pipe.line_width = config.line_expand;
 	pipe.feedback_loop_flags = FeedbackLoopFlag_None;
-	if (m_features.texture_barrier && (config.require_one_barrier || config.require_full_barrier))
+	if (m_features.texture_barrier)
 	{
-		if (config.IsFeedbackLoopRT(config.ps))
+		// Input attachments are required whenever either shader reads the render target or depth,
+		// even when framebuffer fetch avoids an explicit barrier between draws.
+		if (pipe.rt &&
+			(config.IsFeedbackLoopRT(config.ps) ||
+				(config.alpha_second_pass.enable && config.IsFeedbackLoopRT(config.alpha_second_pass.ps))))
 			pipe.feedback_loop_flags |= FeedbackLoopFlag_ReadAndWriteRT;
 
-		if (config.IsFeedbackLoopDepth(config.ps))
+		if (pipe.ds &&
+			(config.IsFeedbackLoopDepth(config.ps) ||
+				(config.alpha_second_pass.enable && config.IsFeedbackLoopDepth(config.alpha_second_pass.ps))))
 			pipe.feedback_loop_flags |= FeedbackLoopFlag_ReadAndWriteDepth;
 	}
 	if (pipe.ds && !(pipe.feedback_loop_flags & FeedbackLoopFlag_ReadAndWriteDepth))
