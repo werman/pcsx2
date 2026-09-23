@@ -1068,7 +1068,11 @@ bool GSDevice11::SupportsExclusiveFullscreen() const
 GSDevice::PresentResult GSDevice11::BeginPresent(bool frame_skip)
 {
 	if (frame_skip || !m_swap_chain)
+	{
+		// A skipped present can still contain GS commands from this frame.
+		m_ctx->Flush();
 		return PresentResult::FrameSkipped;
+	}
 
 	// Check if we lost exclusive fullscreen. If so, notify the host, so it can switch to windowed mode.
 	// This might get called repeatedly if it takes a while to switch back, that's the host's problem.
