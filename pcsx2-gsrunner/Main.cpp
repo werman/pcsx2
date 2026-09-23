@@ -803,6 +803,11 @@ void GSRunner::SettingsOverride()
 	// complete as quickly as possible
 	s_settings_interface.SetBoolValue("EmuCore/GS", "FrameLimitEnable", false);
 	s_settings_interface.SetIntValue("EmuCore/GS", "VsyncEnable", false);
+	// GS dump replay does not execute guest CPU code, so it does not need fastmem mappings.
+	s_settings_interface.SetBoolValue("EmuCore/CPU/Recompiler", "EnableFastmem", false);
+	// The selected last VSync may be a duplicate of an earlier frame which we deliberately do not present.
+	if (s_present_last_frame_only)
+		s_settings_interface.SetBoolValue("EmuCore/GS", "SkipDuplicateFrames", false);
 
 	// Force screenshot quality settings to something more performant, overriding any defaults good for users.
 	s_settings_interface.SetIntValue("EmuCore/GS", "ScreenshotFormat", static_cast<int>(GSScreenshotFormat::PNG));
@@ -813,7 +818,7 @@ void GSRunner::SettingsOverride()
 	s_settings_interface.SetBoolValue("InputSources", "XInput", false);
 
 	// we don't need any sound output
-	s_settings_interface.SetStringValue("SPU2/Output", "OutputModule", "nullout");
+	s_settings_interface.SetStringValue("SPU2/Output", "Backend", "Null");
 
 	// none of the bindings are going to resolve to anything
 	Pad::ClearPortBindings(s_settings_interface, 0);
