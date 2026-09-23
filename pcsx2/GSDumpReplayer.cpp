@@ -49,6 +49,8 @@ static bool s_needs_state_loaded = false;
 static u64 s_frame_ticks = 0;
 static u64 s_next_frame_time = 0;
 static bool s_is_dump_runner = false;
+static bool s_present_last_frame_only = false;
+static u32 s_last_vsync_packet = 0;
 static bool s_dump_perf_metrics = true;
 
 static bool s_use_frame_range = false;
@@ -92,6 +94,22 @@ void GSDumpReplayer::SetIsDumpRunner(bool is_runner, bool dump_perf)
 	s_dump_perf_metrics = dump_perf;
 }
 
+void GSDumpReplayer::SetPresentLastFrameOnly(bool enabled)
+{
+	s_present_last_frame_only = enabled;
+}
+
+static void UpdateLastVSyncPacket()
+{
+	const auto& packets = s_dump_file->GetPackets();
+	s_last_vsync_packet = 0;
+	for (u32 i = 0; i < packets.size(); i++)
+	{
+		if (packets[i].id == GSDumpTypes::GSType::VSync)
+			s_last_vsync_packet = i;
+	}
+}
+
 void GSDumpReplayer::SetLoopCount(s32 loop_count)
 {
 	s_dump_loop_count = loop_count - 1;
@@ -125,6 +143,7 @@ bool GSDumpReplayer::Initialize(const char* filename, Error* error)
 	}
 
 	Console.WriteLn("(GSDumpReplayer) Read file in %.2f ms.", timer.GetTimeMilliseconds());
+	UpdateLastVSyncPacket();
 
 	// We replace all CPUs.
 	Cpu = &GSDumpReplayerCpu;
@@ -158,6 +177,7 @@ bool GSDumpReplayer::ChangeDump(const char* filename)
 	}
 
 	s_dump_file = std::move(new_dump);
+	UpdateLastVSyncPacket();
 	s_current_packet = 0;
 
 	// Don't forget to reset the GS!
@@ -393,11 +413,15 @@ void GSDumpReplayerCpuStep()
 			s_dump_frame_number++;
 			GSDumpReplayerUpdateFrameLimit();
 			GSDumpReplayerFrameLimit();
-			MTGS::PostVsyncStart(false);
+			// GSRunner queues frame and loop metadata here; it must precede the VSync packet on the GS thread.
+			if (s_is_dump_runner)
+				Host::PumpMessagesOnCPUThread();
+			MTGS::PostVsyncStart(false, s_present_last_frame_only && s_current_packet != s_last_vsync_packet);
 			VMManager::Internal::VSyncOnCPUThread();
 			if (VMManager::Internal::IsExecutionInterrupted())
 				GSDumpReplayerExitExecution();
-			Host::PumpMessagesOnCPUThread();
+			if (!s_is_dump_runner)
+				Host::PumpMessagesOnCPUThread();
 			UpdateFrameRangePacketsOnVSync();
 		}
 		break;

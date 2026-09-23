@@ -437,7 +437,7 @@ void GSgifTransfer3(u8* mem, u32 size)
 	g_gs_renderer->Transfer<2>(const_cast<u8*>(mem), size);
 }
 
-void GSvsync(u32 field, bool registers_written)
+void GSvsync(u32 field, bool registers_written, bool skip_present)
 {
 	// Update this here because we need to check if the pending draw affects the current frame, so our regs need to be updated.
 	g_gs_renderer->PCRTCDisplays.SetVideoMode(g_gs_renderer->GetVideoMode());
@@ -451,7 +451,7 @@ void GSvsync(u32 field, bool registers_written)
 	// Do not move the flush into the VSync() method. It's here because EE transfers
 	// get cleared in HW VSync, and may be needed for a buffered draw (FFX FMVs).
 	g_gs_renderer->Flush(GSState::VSYNC);
-	g_gs_renderer->VSync(field, registers_written, g_gs_renderer->IsIdleFrame());
+	g_gs_renderer->VSync(field, registers_written, g_gs_renderer->IsIdleFrame(), skip_present);
 }
 
 int GSfreeze(FreezeAction mode, freezeData* data)

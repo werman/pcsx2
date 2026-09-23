@@ -61,7 +61,7 @@ protected:
 	GSVector4i m_dimx[8] = {};
 
 	void Reset(bool hardware_reset) override;
-	void VSync(u32 field, bool registers_written, bool idle_frame) override;
+	void VSync(u32 field, bool registers_written, bool idle_frame, bool skip_present) override;
 	GSTexture* GetOutput(int i, float& scale, int& y_offset) override;
 	GSTexture* GetFeedbackOutput(float& scale) override;
 

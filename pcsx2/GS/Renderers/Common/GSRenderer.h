@@ -41,7 +41,7 @@ public:
 
 	virtual void UpdateRenderFixes();
 
-	virtual void VSync(u32 field, bool registers_written, bool idle_frame);
+	virtual void VSync(u32 field, bool registers_written, bool idle_frame, bool skip_present);
 	virtual bool CanUpscale() { return false; }
 	virtual float GetUpscaleMultiplier() { return 1.0f; }
 	virtual float GetTextureScaleFactor() { return 1.0f; }

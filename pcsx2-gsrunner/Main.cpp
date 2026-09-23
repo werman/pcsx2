@@ -77,6 +77,7 @@ static MemorySettingsInterface s_settings_interface;
 
 static std::string s_output_prefix;
 static s32 s_loop_count = 1;
+static bool s_present_last_frame_only = false;
 static std::optional<bool> s_use_window;
 static bool s_no_console = false;
 static bool s_perf_enable = false;
@@ -426,6 +427,7 @@ static void PrintCommandLineHelp(const char* progname)
 		"and only those frames that are multiples of BF (intersection of -dumprange and -dumprangef used).\n"
 		"Defaults to 0,-1,1 (all frames). Only used if -dump is used.\n");
 	std::fprintf(stderr, "  -loop <count>: Loops dump playback N times. Defaults to 1. 0 will loop infinitely.\n");
+	std::fprintf(stderr, "  -presentlastframe: Process all dump VSyncs, but present only the last frame of each loop.\n");
 	std::fprintf(stderr, "  -renderer <renderer>: Sets the graphics renderer. Defaults to Auto.\n");
 	std::fprintf(stderr, "  -swthreads <threads>: Sets the number of threads for the software renderer.\n");
 	std::fprintf(stderr, "  -window: Forces a window to be displayed.\n");
@@ -578,6 +580,11 @@ bool GSRunner::ParseCommandLineArgs(int argc, char* argv[], VMBootParameters& pa
 				s_loop_count = StringUtil::FromChars<s32>(argv[++i]).value_or(0);
 				Console.WriteLn("Looping dump playback %d times.", s_loop_count);
 				s_settings_interface.SetIntValue("EmuCore/GS", "DumpReplayLoopCount", s_loop_count);
+				continue;
+			}
+			else if (CHECK_ARG("-presentlastframe"))
+			{
+				s_present_last_frame_only = true;
 				continue;
 			}
 			else if (CHECK_ARG_PARAM("-renderer"))
@@ -844,6 +851,7 @@ static void CPUThreadMain(VMBootParameters* params, std::atomic<int>* ret)
 		// apply new settings (e.g. pick up renderer change)
 		VMManager::ApplySettings();
 		GSDumpReplayer::SetIsDumpRunner(true, s_perf_enable);
+		GSDumpReplayer::SetPresentLastFrameOnly(s_present_last_frame_only);
 
 		if (VMManager::Initialize(*params) == VMBootResult::StartupSuccess)
 		{

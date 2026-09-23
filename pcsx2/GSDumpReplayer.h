@@ -17,6 +17,7 @@ namespace GSDumpReplayer
 	int GetLoopCount();
 	bool IsRunner();
 	void SetIsDumpRunner(bool is_runner, bool dump_perf = true);
+	void SetPresentLastFrameOnly(bool enabled);
 	void SetFrameRange(bool use, u32 start, u32 end);
 
 	bool Initialize(const char* filename, Error* error = nullptr);

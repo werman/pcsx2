@@ -63,7 +63,7 @@ namespace MTGS
 	void Freeze(FreezeAction mode, FreezeData& data);
 
 	int GetCurrentVsyncQueueSize();
-	void PostVsyncStart(bool registers_written);
+	void PostVsyncStart(bool registers_written, bool skip_present = false);
 	void InitAndReadFIFO(u8* mem, u32 qwc);
 
 	void RunOnGSThread(AsyncCallType func);

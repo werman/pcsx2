@@ -68,7 +68,7 @@ void GSRendererSW::Destroy()
 	m_output = nullptr;
 }
 
-void GSRendererSW::VSync(u32 field, bool registers_written, bool idle_frame)
+void GSRendererSW::VSync(u32 field, bool registers_written, bool idle_frame, bool skip_present)
 {
 	Sync(0); // IncAge might delete a cached texture in use
 
@@ -89,7 +89,7 @@ void GSRendererSW::VSync(u32 field, bool registers_written, bool idle_frame)
 	//
 	*/
 
-	GSRenderer::VSync(field, registers_written, idle_frame);
+	GSRenderer::VSync(field, registers_written, idle_frame, skip_present);
 
 	m_tc->IncAge();
 

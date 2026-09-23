@@ -2451,7 +2451,11 @@ GSDevice::PresentResult GSDeviceVK::BeginPresent(bool frame_skip)
 		return PresentResult::DeviceLost;
 
 	if (frame_skip)
+	{
+		// A skipped present can still contain GS work from this frame.
+		ExecuteCommandBuffer(false);
 		return PresentResult::FrameSkipped;
+	}
 
 	// If we're running surfaceless, kick the command buffer so we don't run out of descriptors.
 	if (!m_swap_chain)

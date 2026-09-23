@@ -95,7 +95,7 @@ void GSRendererHW::UpdateSettings(const Pcsx2Config::GSOptions& old_config)
 	SetTCOffset();
 }
 
-void GSRendererHW::VSync(u32 field, bool registers_written, bool idle_frame)
+void GSRendererHW::VSync(u32 field, bool registers_written, bool idle_frame, bool skip_present)
 {
 	if (GSConfig.LoadTextureReplacements)
 		GSTextureReplacements::ProcessAsyncLoadedTextures();
@@ -143,7 +143,7 @@ void GSRendererHW::VSync(u32 field, bool registers_written, bool idle_frame)
 	m_skip = 0;
 	m_skip_offset = 0;
 
-	GSRenderer::VSync(field, registers_written, idle_frame);
+	GSRenderer::VSync(field, registers_written, idle_frame, skip_present);
 }
 
 GSTexture* GSRendererHW::GetOutput(int i, float& scale, int& y_offset)

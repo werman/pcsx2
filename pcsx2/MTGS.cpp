@@ -233,10 +233,11 @@ struct RingCmdPacket_Vsync
 
 	// must be 16 byte aligned
 	u32 registers_written;
-	u32 pad[3];
+	u32 skip_present;
+	u32 pad[2];
 };
 
-void MTGS::PostVsyncStart(bool registers_written)
+void MTGS::PostVsyncStart(bool registers_written, bool skip_present)
 {
 	// Optimization note: Typically regset1 isn't needed.  The regs in that area are typically
 	// changed infrequently, usually during video mode changes.  However, on modern systems the
@@ -252,6 +253,7 @@ void MTGS::PostVsyncStart(bool registers_written)
 	remainder[1] = GSIMR._u32;
 	(GSRegSIGBLID&)remainder[2] = GSSIGLBLID;
 	remainder[4] = static_cast<u32>(registers_written);
+	remainder[5] = static_cast<u32>(skip_present);
 	s_packet_writepos = (s_packet_writepos + 2) & RingBufferMask;
 
 	SendDataPacket();
@@ -500,7 +502,8 @@ void MTGS::MainLoop()
 							((GSRegSIGBLID&)RingBuffer.Regs[0x1080]) = (GSRegSIGBLID&)remainder[2];
 
 							// CSR & 0x2000; is the pageflip id.
-							GSvsync((((u32&)RingBuffer.Regs[0x1000]) & 0x2000) ? 0 : 1, remainder[4] != 0);
+							GSvsync((((u32&)RingBuffer.Regs[0x1000]) & 0x2000) ? 0 : 1,
+								remainder[4] != 0, remainder[5] != 0);
 
 							s_QueuedFrameCount.fetch_sub(1);
 							if (s_VsyncSignalListener.exchange(false))

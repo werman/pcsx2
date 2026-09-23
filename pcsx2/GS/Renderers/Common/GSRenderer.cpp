@@ -522,7 +522,8 @@ void GSJoinSnapshotThreads()
 
 bool GSRenderer::BeginPresentFrame(bool frame_skip)
 {
-	Host::BeginPresentFrame();
+	if (!frame_skip || !GSDumpReplayer::IsRunner())
+		Host::BeginPresentFrame();
 
 	if (GSDumpReplayer::IsReplayingDump())
 		GSDumpReplayer::UpdateGSStats();
@@ -582,7 +583,7 @@ void GSRenderer::EndPresentFrame()
 	ImGuiManager::NewFrame();
 }
 
-void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
+void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame, bool skip_present)
 {
 	if (GSConfig.ShouldDump(s_n, g_perfmon.GetFrame()))
 	{
@@ -607,7 +608,7 @@ void GSRenderer::VSync(u32 field, bool registers_written, bool idle_frame)
 	const int fb_sprite_blits = g_perfmon.GetDisplayFramebufferSpriteBlits();
 	const bool fb_sprite_frame = (fb_sprite_blits > 0);
 
-	bool skip_frame = false;
+	bool skip_frame = skip_present;
 	if (GSConfig.SkipDuplicateFrames && !GSCapture::IsCapturingVideo())
 	{
 		bool is_unique_frame;
